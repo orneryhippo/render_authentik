@@ -1,0 +1,73 @@
+version: 1
+
+services:
+  # PostgreSQL Database for Authentik
+  - type: pgsql
+    name: authentik-db
+    plan: free  # or starter for more storage/connections
+    databaseName: authentik
+    user: authentik
+    # Render auto-generates a strong password; accessible via DATABASE_URL or individual vars
+
+  # Redis for caching/sessions (Render Private Service or use external if preferred)
+  - type: redis
+    name: authentik-redis
+    plan: free
+    # Render provides REDIS_URL automatically
+
+  # Authentik Server (main web service)
+  - type: web
+    name: authentik-server
+    runtime: docker
+    dockerfilePath: ./Dockerfile.authentik  # Optional: you can use image directly
+    repo: https://github.com/goauthentik/authentik  # Or your fork/template repo
+    # Alternative: use image directly with buildCommand or pre-built
+    plan: starter  # At least 1 GB RAM recommended; free may be tight for production
+    envVars:
+      - key: AUTHENTIK_SECRET_KEY
+        generateValue: true  # Render generates a secure random value
+      - key: AUTHENTIK_POSTGRESQL__HOST
+        fromDatabase:
+          name: authentik-db
+          property: host
+      - key: AUTHENTIK_POSTGRESQL__NAME
+        value: authentik
+      - key: AUTHENTIK_POSTGRESQL__USER
+        value: authentik
+      - key: AUTHENTIK_POSTGRESQL__PASSWORD
+        fromDatabase:
+          name: authentik-db
+          property: password
+      - key: AUTHENTIK_REDIS__HOST
+        fromService:
+          type: redis
+          name: authentik-redis
+          property: host
+      - key: AUTHENTIK_REDIS__PASSWORD
+        fromService:
+          type: redis
+          name: authentik-redis
+          property: password
+      - key: AUTHENTIK_ERROR_REPORTING__ENABLED
+        value: "false"
+      - key: AUTHENTIK_BOOTSTRAP_PASSWORD  # For initial admin setup (change after first login)
+        generateValue: true
+    healthCheckPath: /-/health/
+    startCommand: server  # Authentik Docker image supports 'server' command
+
+  # Authentik Worker (background tasks)
+  - type: worker
+    name: authentik-worker
+    runtime: docker
+    plan: starter
+    envVars: []  # Same as server — Render can share via Environment Group (recommended)
+    # Use the same image and command: worker
+    startCommand: worker
+
+# Optional: Environment Group to share common vars between server and worker
+environment:
+  - name: authentik-env
+    envVars:
+      - key: AUTHENTIK_SECRET_KEY
+        sync: true  # Or reference generated value
+      # Add other shared vars here if needed
