@@ -19,7 +19,7 @@ services:
   - type: web
     name: authentik-server
     runtime: docker
-    image: ghcr.io/goauthentik/server:2026.2.1
+    image: ghcr.io/goauthentik/server:latest
     plan: starter       # Minimum ~1 GB RAM recommended; free tier may be too tight
     region: oregon      # Change to your preferred region (e.g., frankfurt)
     envVars:
@@ -56,7 +56,7 @@ services:
   - type: worker
     name: authentik-worker
     runtime: docker
-    image: ghcr.io/goauthentik/server:2026.2.1
+    image: ghcr.io/goauthentik/server:latest
     plan: starter
     envVars:
       - key: AUTHENTIK_SECRET_KEY
